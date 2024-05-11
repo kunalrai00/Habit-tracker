@@ -1,11 +1,10 @@
 import datetime
 import uuid
-from flask import Blueprint,current_app, render_template, request, redirect, url_for
+from flask import Blueprint, request, redirect, url_for, render_template, current_app
 
 pages = Blueprint(
     "habits", __name__, template_folder="templates", static_folder="static"
 )
-
 
 
 @pages.context_processor
@@ -15,6 +14,7 @@ def add_calc_date_range():
         return dates
 
     return {"date_range": date_range}
+
 
 def today_at_midnight():
     today = datetime.datetime.today()
@@ -28,7 +28,6 @@ def index():
         selected_date = datetime.datetime.fromisoformat(date_str)
     else:
         selected_date = today_at_midnight()
-    
 
     habits_on_date = current_app.db.habits.find({"added": {"$lte": selected_date}})
     completions = [
@@ -45,30 +44,25 @@ def index():
     )
 
 
+@pages.route("/complete", methods=["POST"])
+def complete():
+    date_string = request.form.get("date")
+    date = datetime.datetime.fromisoformat(date_string)
+    habit = request.form.get("habitId")
+    current_app.db.completions.insert_one({"date": date, "habit": habit})
 
+    return redirect(url_for(".index", date=date_string))
 
 
 @pages.route("/add", methods=["GET", "POST"])
 def add_habit():
     today = today_at_midnight()
-    
+
     if request.form:
-        current_app.db.habits.inser_one(
+        current_app.db.habits.insert_one(
             {"_id": uuid.uuid4().hex, "added": today, "name": request.form.get("habit")}
         )
 
     return render_template(
-        "add_habit.html",
-        title="Habit Tracker - Add Habit",
-        selected_date=today
+        "add_habit.html", title="Habit Tracker - Add Habit", selected_date=today
     )
-
-
-@pages.route("/complete", methods=["POST"])
-def complete():
-    date_string = request.form.get("date")
-    date = datetime.datetime.fromisoformat(date_string)
-    habit = request.form.get("habitName")
-    current_app.db.completions.inser_one({"date": date, "habit":habit})
-
-    return redirect(url_for(".index", date=date_string))
